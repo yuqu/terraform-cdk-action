@@ -12,10 +12,37 @@ import * as input from "./inputs";
 import { Inputs } from "./models";
 import { setupTerraform } from "./setup-terraform";
 
+const TRUNCATE_START =
+  "Terraform used the selected providers to generate the following execution";
+const TRUNCATE_END =
+  "─────────────────────────────────────────────────────────────────────────────";
+
 function hasTerraformChanges(output: string): Boolean {
   return !output.includes(
     "No changes. Your infrastructure matches the configuration."
   );
+}
+
+function getChangesFromOutput(output: string): string {
+  let finalOutput = output;
+
+  const truncateStart = output.indexOf(TRUNCATE_START);
+  if (truncateStart > 0) {
+    const truncateEnd = output.indexOf(TRUNCATE_END);
+    finalOutput = output.substring(
+      truncateStart,
+      truncateEnd > 0 ? truncateEnd + TRUNCATE_END.length : output.length
+    );
+  }
+
+  // Github max comment length is 65536, but we want to leave room for the rest of the comment content
+  const maxOutputLength = 60000;
+  if (finalOutput.length > maxOutputLength) {
+    return `... Output truncated to the last ${maxOutputLength} characters ...\n\n${finalOutput.substring(
+      finalOutput.length - maxOutputLength
+    )}`;
+  }
+  return finalOutput;
 }
 
 function postComment(
@@ -25,17 +52,23 @@ function postComment(
   output: string | undefined,
   outputTitle: Error | string
 ): Promise<void> {
+  const changes = output ? getChangesFromOutput(output) : undefined;
+  core.debug(`changes?.length: ${changes?.length}`);
+  core.debug(`output?.length: ${output?.length}`);
+  core.setOutput("output", output);
+  core.setOutput("changes", changes);
+
   return commentController.postCommentOnPr(
     `### ${title}
 
 ${runUrl ? `<a target="_blank" href='${runUrl}'>🌍 View run</a>` : ""}
 
 ${
-  !!output
+  !!changes
     ? `<details><summary>${outputTitle}</summary>
 
 \`\`\`shell
-${output}
+${changes}
 \`\`\`
 
 </details>`

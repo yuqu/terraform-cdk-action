@@ -41,6 +41,8 @@ export class CommentController {
       );
     }
 
+    core.debug(`messageWithTag length: ${messageWithTag.length}`);
+
     if (previousComment) {
       core.debug(`Updating previous comment`);
       await octokit.rest.issues.updateComment({
