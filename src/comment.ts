@@ -14,6 +14,12 @@ export interface CommentControllerConfig {
   context: Context;
   octokit: ReturnType<typeof getOctokit>;
 }
+
+const CHANGES_START_MARK =
+  "Terraform used the selected providers to generate the following execution";
+const CHANGES_END_MARK =
+  "─────────────────────────────────────────────────────────────────────────────";
+
 export class CommentController {
   constructor(private config: CommentControllerConfig) {}
   async postCommentOnPr(message: string): Promise<void> {
@@ -40,6 +46,8 @@ export class CommentController {
         tag
       );
     }
+
+    core.debug(`messageWithTag length: ${messageWithTag.length}`);
 
     if (previousComment) {
       core.debug(`Updating previous comment`);
@@ -140,6 +148,19 @@ export class CommentController {
       )}`;
     }
     return output;
+  }
+
+  public getChangesFromOutput(output: string): string {
+    const truncateStart = output.indexOf(CHANGES_START_MARK);
+    if (truncateStart < 0) {
+      return output;
+    }
+
+    const truncateEnd = output.indexOf(CHANGES_END_MARK);
+    return output.substring(
+      truncateStart,
+      truncateEnd > 0 ? truncateEnd + CHANGES_END_MARK.length : output.length
+    );
   }
 }
 const hashString = (str: string) => {

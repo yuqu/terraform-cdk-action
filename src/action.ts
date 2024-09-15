@@ -25,18 +25,27 @@ function postComment(
   output: string | undefined,
   outputTitle: Error | string
 ): Promise<void> {
-  output = output ? commentController.truncateOutput(output) : undefined;
+  const changes = output
+    ? commentController.truncateOutput(
+        commentController.getChangesFromOutput(output)
+      )
+    : undefined;
+  core.debug(`changes?.length: ${changes?.length}`);
+  core.debug(`output?.length: ${output?.length}`);
+  core.setOutput("output", output);
+  core.setOutput("changes", changes);
+
   return commentController.postCommentOnPr(
     `### ${title}
 
 ${runUrl ? `<a target="_blank" href='${runUrl}'>🌍 View run</a>` : ""}
 
 ${
-  !!output
+  !!changes
     ? `<details><summary>${outputTitle}</summary>
 
 \`\`\`shell
-${output}
+${changes}
 \`\`\`
 
 </details>`
